@@ -107,3 +107,86 @@ cv2.destroyAllWindows()
 # Save attendance log to a CSV file
 attendance_df.to_csv("attendance_log_with_uploaded_images.csv", index=False)
 print("Attendance log saved to attendance_log_with_uploaded_images.csv")
+
+
+
+
+
+
+import cv2
+import mediapipe as mp
+import pandas as pd
+from datetime import datetime
+
+# Mediapipe setup
+mp_face_detection = mp.solutions.face_detection
+mp_drawing = mp.solutions.drawing_utils
+face_detection = mp_face_detection.FaceDetection(min_detection_confidence=0.5)
+
+# Initialize attendance DataFrame
+attendance_df = pd.DataFrame(columns=["Name", "Timestamp"])
+
+# Known faces data (simulating recognition with pre-determined names for detected faces)
+# In a real implementation, you can compare face landmarks or use another library for recognition.
+known_faces = {
+    "Alice": {"box": (0.3, 0.3, 0.7, 0.7)},  # Example: Replace with a matching algorithm
+    "Bob": {"box": (0.5, 0.5, 0.9, 0.9)},
+}
+
+attendance_log = {name: False for name in known_faces}
+
+def mark_attendance(name):
+    """Mark attendance in the DataFrame."""
+    if not attendance_log[name]:
+        now = datetime.now()
+        timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+        attendance_df.loc[len(attendance_df)] = [name, timestamp]
+        attendance_log[name] = True
+        print(f"{name} marked present at {timestamp}")
+
+# Start webcam feed
+cap = cv2.VideoCapture(0)
+
+print("Press 'q' to quit the application.")
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        print("Failed to grab frame")
+        break
+
+    # Convert frame to RGB for Mediapipe
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = face_detection.process(rgb_frame)
+
+    if results.detections:
+        for detection in results.detections:
+            bboxC = detection.location_data.relative_bounding_box
+            ih, iw, _ = frame.shape
+            x, y, w, h = (
+                int(bboxC.xmin * iw),
+                int(bboxC.ymin * ih),
+                int(bboxC.width * iw),
+                int(bboxC.height * ih),
+            )
+
+            # Here we simply assume the first detection is "Alice" for demo purposes
+            # Replace this with your logic for actual face comparison
+            name = "Alice"
+
+            mark_attendance(name)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(frame, name, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+    # Display the frame
+    cv2.imshow("Real-Time Attendance", frame)
+
+    # Exit on 'q'
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+attendance_df.to_csv("attendance_log_mediapipe.csv", index=False)
+print("Attendance log saved to attendance_log_mediapipe.csv")
+
+
